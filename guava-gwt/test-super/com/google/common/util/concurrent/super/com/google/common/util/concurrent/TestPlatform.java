@@ -16,18 +16,16 @@
 
 package com.google.common.util.concurrent;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static junit.framework.Assert.fail;
 
-import com.google.common.annotations.GwtCompatible;
-
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-/**
- * Methods factored out so that they can be emulated differently in GWT.
- */
-@GwtCompatible(emulated = true)
+/** Methods factored out so that they can be emulated differently in GWT. */
 final class TestPlatform {
   static void verifyGetOnPendingFuture(Future<?> future) {
     try {
@@ -35,17 +33,17 @@ final class TestPlatform {
       fail();
     } catch (Exception e) {
       assertThat(e).isInstanceOf(IllegalStateException.class);
-      assertThat(e).hasMessage("Cannot get() on a pending future.");
+      assertThat(e).hasMessageThat().isEqualTo("Cannot get() on a pending future.");
     }
   }
 
   static void verifyTimedGetOnPendingFuture(Future<?> future) {
     try {
-      future.get(0, TimeUnit.SECONDS);
+      future.get(0, SECONDS);
       fail();
     } catch (Exception e) {
       assertThat(e).isInstanceOf(IllegalStateException.class);
-      assertThat(e).hasMessage("Cannot get() on a pending future.");
+      assertThat(e).hasMessageThat().isEqualTo("Cannot get() on a pending future.");
     }
   }
 
@@ -55,6 +53,17 @@ final class TestPlatform {
 
   static void clearInterrupt() {
     // There is no thread interruption in GWT, so there's nothing to do.
+  }
+
+  static <V> V getDoneFromTimeoutOverload(Future<V> future) throws ExecutionException {
+    checkState(future.isDone(), "Future was expected to be done: %s", future);
+    try {
+      return future.get(0, SECONDS);
+    } catch (InterruptedException e) {
+      throw new AssertionError();
+    } catch (TimeoutException e) {
+      throw new AssertionError();
+    }
   }
 
   private TestPlatform() {}
